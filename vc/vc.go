@@ -28,6 +28,9 @@ import (
 // VerifiableCredentialType is the default credential type required for every credential
 const VerifiableCredentialType = "VerifiableCredential"
 
+// SchemaCredentialTypу eused when a subject data schema needs to be specified
+const SchemaCredentialType = "SchemaCredentialType"
+
 // VerifiableCredentialTypeV1URI returns VerifiableCredential as URI
 func VerifiableCredentialTypeV1URI() ssi.URI {
 	if pURI, err := ssi.ParseURI(VerifiableCredentialType); err != nil {
@@ -37,7 +40,16 @@ func VerifiableCredentialTypeV1URI() ssi.URI {
 	}
 }
 
-// DefaultContext is the context required for every credential
+// SchemaCredentialTypeV1URI returns SchemaCredentialType as URI
+func SchemaCredentialTypeV1URI() ssi.URI {
+	if pURI, err := ssi.ParseURI(SchemaCredentialType); err != nil {
+		panic(err)
+	} else {
+		return *pURI
+	}
+}
+
+// VCContextV1 is the context required for every credential
 const VCContextV1 = "https://www.w3.org/2018/credentials/v1"
 
 // VCContextV1URI returns 'https://www.w3.org/2018/credentials/v1' as URI
@@ -65,6 +77,8 @@ type VerifiableCredential struct {
 	ExpirationDate *time.Time `json:"expirationDate,omitempty"`
 	// CredentialStatus holds information on how the credential can be revoked. It is optional
 	CredentialStatus *CredentialStatus `json:"credentialStatus,omitempty"`
+	// CredentialSchema holds information schema credential subject
+	CredentialSchema *CredentialSchema `json:"credentialSchema,omitempty"`
 	// CredentialSubject holds the actual data for the credential. It must be extracted using the UnmarshalCredentialSubject method and a custom type.
 	CredentialSubject []interface{} `json:"credentialSubject"`
 	// Proof contains the cryptographic proof(s). It must be extracted using the Proofs method or UnmarshalProofValue method for non-generic proof fields.
@@ -74,6 +88,12 @@ type VerifiableCredential struct {
 // CredentialStatus defines the method on how to determine a credential is revoked.
 type CredentialStatus struct {
 	ID   url.URL `json:"id"`
+	Type string  `json:"type"`
+}
+
+// CredentialSchema defines for schema subject.
+type CredentialSchema struct {
+	ID   ssi.URI `json:"id"`
 	Type string  `json:"type"`
 }
 
