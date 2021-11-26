@@ -20,7 +20,6 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ugradid/ugradid-common/vc"
 	"github.com/xeipuuv/gojsonschema"
 	"regexp"
 	"strings"
@@ -72,44 +71,22 @@ func ValidateWithJSONLoader(schemaLoader, documentLoader gojsonschema.JSONLoader
 	return nil
 }
 
-// ValidateCredential a credential's data is valid against its schema
-func ValidateCredential(credentialSubjectSchema, documentJSON string) error {
-	var cred vc.VerifiableCredential
-	if err := json.Unmarshal([]byte(documentJSON), &cred); err != nil {
-		return err
-	}
-
-	// Marshal the credential subject to json to ValidateWithJSONLoader against the provided credential subject schema
-	credentialSubjectJSONBytes, err := json.Marshal(cred.CredentialSubject)
+// ValidateJSONSchema takes in a string that is purported to be a JSON schema (schema definition)
+// An error is returned if it is not a valid JSON schema, and nil is returned on success
+func ValidateJSONSchema(maybeSchema JsonSchema) error {
+	jsonSchema, err := json.Marshal(maybeSchema)
 	if err != nil {
 		return err
 	}
-	credentialSubjectJSON := string(credentialSubjectJSONBytes)
-	// Validate against the credential subject s
-	return Validate(credentialSubjectSchema, credentialSubjectJSON)
+	return ValidateJSONSchemaBytes(jsonSchema)
 }
 
-// ValidateJSONSchemaString takes in a string that is purported to be a JSON schema (schema definition)
+// ValidateJSONSchemaBytes takes in a map that is purported to be a JSON schema (schema definition)
 // An error is returned if it is not a valid JSON schema, and nil is returned on success
-func ValidateJSONSchemaString(maybeSchema string) error {
-	var schemaMap JsonSchemaMap
-	if err := json.Unmarshal([]byte(maybeSchema), &schemaMap); err != nil {
-		return err
-	}
-	return ValidateJSONSchema(schemaMap)
-}
-
-// ValidateJSONSchema takes in a map that is purported to be a JSON schema (schema definition)
-// An error is returned if it is not a valid JSON schema, and nil is returned on success
-func ValidateJSONSchema(maybeSchema JsonSchemaMap) error {
+func ValidateJSONSchemaBytes(maybeSchema []byte) error {
 	schemaLoader := gojsonschema.NewSchemaLoader()
 	schemaLoader.Validate = true
-
-	jsonSchema, err := maybeSchema.ToJSON()
-	if err != nil {
-		return err
-	}
-	return schemaLoader.AddSchemas(gojsonschema.NewStringLoader(jsonSchema))
+	return schemaLoader.AddSchemas(gojsonschema.NewBytesLoader(maybeSchema))
 }
 
 // IsJSON True if string is valid JSON, false otherwise

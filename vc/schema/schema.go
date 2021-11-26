@@ -18,10 +18,16 @@
 package schema
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/ugradid/ugradid-common/did"
+	ssi "github.com/ugradid/ugradid-common"
+	"github.com/ugradid/ugradid-common/vc"
 	"regexp"
+	"time"
+)
+
+// Draft7Schema This schema supports simple draft 7 JSON Schemas
+const (
+	Draft7Schema = "http://json-schema.org/draft-07/schema"
 )
 
 // Version around modified semantic version where only major and minor numbers are valid
@@ -49,105 +55,21 @@ func (e UnRecognisedVersionError) Error() string {
 	return fmt.Sprintf("'%s' is an unrecognized version format", e.submittedVersion)
 }
 
-// Metadata for ledger objects and how they will be stored
-// Type, Model ModelVersion, and ID should always be present
-// Depending on the model object, the remainder of the fields may be optional.
-type Metadata struct {
-	Type     string        `json:"type"`
-	Version  string        `json:"version"`
-	ID       string        `json:"id"`
-	Name     string        `json:"name,omitempty"`
-	Author   did.DID       `json:"author,omitempty"`
-	Authored string        `json:"authored,omitempty"`
-	Proof    []interface{} `json:"proof,omitempty"`
-}
-
+// Schema for ledger objects and how they will be stored
+// Type, Model ModelVersion, Schema, Author and ID should always be present
 type Schema struct {
-	*Metadata
-	*JsonSchema
+	Type     ssi.URI                       `json:"type"`
+	Version  string                        `json:"version"`
+	ID       *ssi.URI                      `json:"id"`
+	Name     string                        `json:"name,omitempty"`
+	Author   ssi.URI                       `json:"author,omitempty"`
+	Authored time.Time                     `json:"authored,omitempty"`
+	Schema   JsonSchema                    `json:"schema"`
+	Proof    *vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
-type UpdateInput struct {
-	PreviousSchema *Schema
-	UpdatedSchema  *Schema
-}
-
-type UpdateResult struct {
-	Valid          bool
-	MajorChange    bool
-	MinorChange    bool
-	DerivedVersion string
-	Message        string
-}
-
-// JsonSchema for a credential that has not been signed
-type JsonSchema struct {
-	Schema JsonSchemaMap `json:"schema"`
-}
-
-// JsonSchemaMap representation of json schema document
-type JsonSchemaMap map[string]interface{}
-
-type Properties map[string]interface{}
-
-// Properties Assumes the json schema has a properties field
-func (j JsonSchemaMap) Properties() Properties {
-	if properties, ok := j["properties"]; ok {
-		return properties.(map[string]interface{})
-	}
-	return map[string]interface{}{}
-}
-
-// Description Assumes the json schema has a description field
-func (j JsonSchemaMap) Description() string {
-	if description, ok := j["description"]; ok {
-		return description.(string)
-	}
-	return ""
-}
-
-func (j JsonSchemaMap) AllowsAdditionalProperties() bool {
-	if v, exists := j["additionalProperties"]; exists {
-		if additionalProps, ok := v.(bool); ok {
-			return additionalProps
-		}
-	}
-	return false
-}
-
-func (j JsonSchemaMap) RequiredFields() []string {
-	if v, exists := j["required"]; exists {
-		if requiredFields, ok := v.([]interface{}); ok {
-			required := make([]string, 0, len(requiredFields))
-			for _, f := range requiredFields {
-				required = append(required, f.(string))
-			}
-			return required
-		}
-	}
-	return []string{}
-}
-
-func Type(field interface{}) string {
-	if asMap, isMap := field.(map[string]interface{}); isMap {
-		if v, exists := asMap["type"]; exists {
-			if typeString, ok := v.(string); ok {
-				return typeString
-			}
-		}
-	}
-	return ""
-}
-
-func Format(field interface{}) string {
-	if asMap, isMap := field.(map[string]interface{}); isMap {
-		if v, exists := asMap["format"]; exists {
-			if formatString, ok := v.(string); ok {
-				return formatString
-			}
-		}
-	}
-	return ""
+func GenerateSchemaID(author ssi.URI, id string, version string) string {
+	return fmt.Sprintf("%s;id=%s;version=%s", author.String(), id, version)
 }
 
 func Contains(field string, required []string) bool {
@@ -159,16 +81,9 @@ func Contains(field string, required []string) bool {
 	return false
 }
 
-func (j JsonSchemaMap) ToJSON() (string, error) {
-	bytes, err := json.Marshal(j)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
-}
-
-func GenerateSchemaID(author did.DID, id string, version string) string {
-	return fmt.Sprintf("%s;id=%s;version=%s", author, id, version)
+// IsType returns true when a credential contains the requested type
+func (s Schema) IsType(sType ssi.URI) bool {
+	return s.Type == sType
 }
 
 // Validates a schema for a correctly composed Credential Schema
@@ -186,26 +101,26 @@ func (s Schema) ValidateID() error {
 		return fmt.Errorf("failed to compile regular expression: %s", regx)
 	}
 
-	result := r.Match([]byte(s.ID))
+	result := r.Match([]byte(s.ID.String()))
 	if !result {
-		return fmt.Errorf("ledger schema 'id': %s is not valid against pattern: %s", s.ID, regx)
+		return fmt.Errorf("schema 'id': %s is not valid against pattern: %s", s.ID, regx)
 	}
 
 	return nil
 }
 
-// Version assumes the version property is the only version in the identifier separated by periods
-func (s Schema) Version() (string, error) {
+// ValidateVersion assumes the version property is the only version in the identifier separated by periods
+func (s Schema) ValidateVersion() error {
 	regx := "\\d+\\.\\d+$"
 	r, err := regexp.Compile(regx)
 	if err != nil {
-		return "", fmt.Errorf("failed to compile regular expression: %s", regx)
+		return fmt.Errorf("failed to compile version regular expression: %s", regx)
 	}
 
-	result := r.Find([]byte(s.ID))
+	result := r.Find([]byte(s.Version))
 	if result == nil {
-		return "", fmt.Errorf("error returning version property with regular expression: %s", regx)
+		return fmt.Errorf("error returning version property with regular expression: %s", regx)
 	}
 
-	return string(result), nil
+	return nil
 }

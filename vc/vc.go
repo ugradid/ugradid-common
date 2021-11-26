@@ -19,6 +19,7 @@ package vc
 
 import (
 	"encoding/json"
+	"fmt"
 	ssi "github.com/ugradid/ugradid-common"
 	"github.com/ugradid/ugradid-common/marshal"
 	"net/url"
@@ -28,8 +29,8 @@ import (
 // VerifiableCredentialType is the default credential type required for every credential
 const VerifiableCredentialType = "VerifiableCredential"
 
-// SchemaCredentialTypу eused when a subject data schema needs to be specified
-const SchemaCredentialType = "SchemaCredentialType"
+// SchemaCredentialType use when a subject data schema needs to be specified
+const SchemaCredentialType = "SchemaCredential"
 
 // VerifiableCredentialTypeV1URI returns VerifiableCredential as URI
 func VerifiableCredentialTypeV1URI() ssi.URI {
@@ -80,7 +81,7 @@ type VerifiableCredential struct {
 	// CredentialSchema holds information schema credential subject
 	CredentialSchema *CredentialSchema `json:"credentialSchema,omitempty"`
 	// CredentialSubject holds the actual data for the credential. It must be extracted using the UnmarshalCredentialSubject method and a custom type.
-	CredentialSubject []interface{} `json:"credentialSubject"`
+	CredentialSubject map[string]interface{} `json:"credentialSubject"`
 	// Proof contains the cryptographic proof(s). It must be extracted using the Proofs method or UnmarshalProofValue method for non-generic proof fields.
 	Proof []interface{} `json:"proof"`
 }
@@ -93,8 +94,8 @@ type CredentialStatus struct {
 
 // CredentialSchema defines for schema subject.
 type CredentialSchema struct {
-	ID   ssi.URI `json:"id"`
-	Type string  `json:"type"`
+	ID   ssi.URI        `json:"id"`
+	Type ssi.SchemaType `json:"type"`
 }
 
 // Proofs returns the basic proofs for this credential. For specific proof contents, UnmarshalProofValue must be used.
@@ -119,13 +120,13 @@ func (vc VerifiableCredential) MarshalJSON() ([]byte, error) {
 	if data, err := json.Marshal(tmp); err != nil {
 		return nil, err
 	} else {
-		return marshal.NormalizeDocument(data, pluralContext, marshal.Unplural(typeKey), marshal.Unplural(credentialSubjectKey), marshal.Unplural(proofKey))
+		return marshal.NormalizeDocument(data, pluralContext, marshal.Unplural(typeKey), marshal.Unplural(proofKey))
 	}
 }
 
 func (vc *VerifiableCredential) UnmarshalJSON(b []byte) error {
 	type Alias VerifiableCredential
-	normalizedVC, err := marshal.NormalizeDocument(b, pluralContext, marshal.Plural(typeKey), marshal.Plural(credentialSubjectKey), marshal.Plural(proofKey))
+	normalizedVC, err := marshal.NormalizeDocument(b, pluralContext, marshal.Plural(typeKey), marshal.Plural(proofKey))
 	if err != nil {
 		return err
 	}
@@ -177,4 +178,8 @@ func (vc VerifiableCredential) ContainsContext(context ssi.URI) bool {
 	}
 
 	return false
+}
+
+func GenerateCredentialID(issuer ssi.URI, id string) string {
+	return fmt.Sprintf("%s#%s", issuer.String(), id)
 }
