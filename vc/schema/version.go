@@ -27,11 +27,14 @@ import (
 
 const (
 	VersionRxStr           = `^[0-9]+\.[0-9]+$`
+	idRxStr = `^(did:(?:ugra):\S+)\;id=(\S+);version=(\d+\.\d+)$`
 	VersionPathResource    = "version"
 	ResourceIDPathResource = "id"
 	FragSep                = ";"
 	FragAssignment         = "="
 )
+
+var IDRx = regexp.MustCompile(idRxStr)
 
 // VersionFromStr parses a version string into a Version object. Returns an error if the version
 // string does not match the VersionRxStr regular expression, i.e. "<major>.<minor>", where major

@@ -25,11 +25,6 @@ import (
 	"time"
 )
 
-// Draft7Schema This schema supports simple draft 7 JSON Schemas
-const (
-	Draft7Schema = "http://json-schema.org/draft-07/schema"
-)
-
 // Version around modified semantic version where only major and minor numbers are valid
 type Version struct {
 	Major int
@@ -64,7 +59,7 @@ type Schema struct {
 	Name     string                        `json:"name,omitempty"`
 	Author   ssi.URI                       `json:"author,omitempty"`
 	Authored time.Time                     `json:"authored,omitempty"`
-	Schema   JsonSchema                    `json:"schema"`
+	Schema   map[string]interface{}        `json:"schema"`
 	Proof    *vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
